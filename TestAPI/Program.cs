@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<IRepository,StoryRepo>();
-builder.Services.AddSingleton<HttpClient>();
+builder.Services.AddScoped<HttpClient>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
