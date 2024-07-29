@@ -1,5 +1,5 @@
+using Service;
 using TestAPI.Middlewares;
-using TestAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<IRepository,StoryRepo>();
+builder.Services.AddSingleton<ICache, Cache>();
 builder.Services.AddScoped<HttpClient>();
 var app = builder.Build();
 

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using TestAPI.Models;
-using TestAPI.Services;
+using Service.Models;
+using Service;
 namespace TestAPI.Controllers
 {
     [ApiController]
@@ -20,7 +20,7 @@ namespace TestAPI.Controllers
         }
 
         [HttpGet]
-        public IEnumerable<Story> Get(string? name)
+        public IEnumerable<Story> Get()
         {
             return repo.GetStories().Result;
         }

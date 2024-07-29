@@ -2,12 +2,20 @@ using Moq;
 using Moq.Protected;
 using Newtonsoft.Json;
 using System.Net;
-using TestAPI.Models;
-using TestAPI.Services;
+using Service.Models;
+using Service;
+using System.Collections.Concurrent;
+using Castle.Core.Logging;
+using TestAPI.Controllers;
+using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Hosting;
+using TestAPI.Middlewares;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.TestHost;
 
 public class StoryRepoTests
 {
-    private readonly StoryRepo _repo;
+    private  IRepository _repo;
     private readonly Mock<HttpMessageHandler> _handlerMock;
     private readonly HttpClient _httpClient;
 
@@ -15,8 +23,54 @@ public class StoryRepoTests
     {
         _handlerMock = new Mock<HttpMessageHandler>();
         _httpClient = new HttpClient(_handlerMock.Object);
-        _repo = new StoryRepo(_httpClient);
+        
        
+    }
+    [Fact]
+    public async Task TestGetStoriesController_GetAll()
+    {
+       await MockObjects();
+        Mock<ILogger<StoriesController>> loggerMock = new Mock<ILogger<StoriesController>>();
+        var cntroller = new StoriesController(loggerMock.Object,_repo);
+        var stories =  cntroller.Get();
+
+        Assert.Equal( 3, stories.Count());
+    }
+    [Fact]
+    public async Task TestGetStoriesController_Search_Empty()
+    {
+        await MockObjects();
+        Mock<ILogger<StoriesController>> loggerMock = new Mock<ILogger<StoriesController>>();
+        var cntroller = new TestAPI.Controllers.StoriesController(loggerMock.Object, _repo);
+        var stories = cntroller.Search("");
+
+        Assert.Equal(3,stories.Count());
+    }
+
+    [Theory]
+    [InlineData("Title1")]
+    public async Task TestGetStoriesController_Search(string search)
+    {
+        await MockObjects();
+        Mock<ILogger<StoriesController>> loggerMock = new Mock<ILogger<StoriesController>>();
+        var cntroller = new TestAPI.Controllers.StoriesController(loggerMock.Object, _repo);
+        var stories = cntroller.Search(search);
+
+        Assert.True(stories.All(s=>s.Title.Contains(search,StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public async Task TestCacheFunctionality()
+    {
+        await MockObjects();
+        //Calling methods twice.
+        await _repo.GetStories();
+        await _repo.GetStories();
+        // verifying http request is only sent once, next call it just got it from cache.
+        _handlerMock.Protected()
+            .Verify<Task<HttpResponseMessage>>("SendAsync",Times.Once(),
+                ItExpr.Is<HttpRequestMessage>(req => req.Method == HttpMethod.Get && req.RequestUri.ToString().EndsWith("newstories.json?print=pretty")),
+                ItExpr.IsAny<CancellationToken>());
     }
 
     [Fact]
@@ -28,8 +82,9 @@ public class StoryRepoTests
         var stories = await _repo.GetStories();
 
         // Assert
-        Assert.Equal(stories.Count, 3);
+        Assert.Equal( 3, stories.Count);
         Assert.True(stories.Any(s=>s.Title.Equals("Title1",StringComparison.OrdinalIgnoreCase)));
+
     }
 
     [Fact]
@@ -55,13 +110,45 @@ public class StoryRepoTests
         var result = await _repo.SearchStories(string.Empty);
 
         // Assert
-        Assert.Equal(result.Count,3);
+        Assert.Equal(3, result.Count);
         Assert.True(result.Any(s=>s.Title.Equals("Title1",StringComparison.OrdinalIgnoreCase)));
     }
+
+    [Fact]
+    public async Task TestExceptionMiddleware()
+    {
+        var builder = new WebHostBuilder()
+            .ConfigureServices(services =>
+            {
+            })
+            .Configure(app =>
+            {
+                app.UseMiddleware<GlobalExceptionMiddleware>();
+                app.Run(async context =>
+                {
+                    // Simulate an exception
+                    throw new InvalidOperationException("Test exception");
+                });
+            });
+
+        var server = new TestServer(builder);
+        var client = server.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+        var responseContent = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.Equal(System.Net.HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Contains("An unexpected error occurred", responseContent);
+    }
+
     private async Task MockObjects()
     {
         var storyIds = new[] { "1", "2", "3" };
         var jsonIds = JsonConvert.SerializeObject(storyIds);
+        ICache cache = new Cache();
+        _repo = new StoryRepo(_httpClient,cache);
         var responseMessage = new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(jsonIds)
@@ -72,7 +159,7 @@ public class StoryRepoTests
             .Setup<Task<HttpResponseMessage>>("SendAsync",
                 ItExpr.Is<HttpRequestMessage>(req => req.Method == HttpMethod.Get && req.RequestUri.ToString().EndsWith("newstories.json?print=pretty")),
                 ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(responseMessage);
+            .ReturnsAsync(responseMessage).Verifiable(Times.Once);
         var story1 = new { id = 1, title = "Title1", url = "http://example.com", by = "user1" };
         var story2 = new { id = 2, title = "Title2", url = "http://example.com", by = "user2" };
         var story3 = new { id = 3, title = "Title3", url = "http://example.com", by = "user3" };

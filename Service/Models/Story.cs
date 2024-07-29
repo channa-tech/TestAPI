@@ -1,4 +1,4 @@
-﻿namespace TestAPI.Models
+﻿namespace Service.Models
 {
     public class Story:IComparable<Story>
     {
