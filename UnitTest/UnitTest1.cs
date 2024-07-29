@@ -26,16 +26,25 @@ public class StoryRepoTests
         
        
     }
+    /// <summary>
+    /// Stub to Test end poit '/Stories'
+    /// </summary>
+    /// <returns></returns>
     [Fact]
     public async Task TestGetStoriesController_GetAll()
     {
-       await MockObjects();
+        await MockObjects();
         Mock<ILogger<StoriesController>> loggerMock = new Mock<ILogger<StoriesController>>();
         var cntroller = new StoriesController(loggerMock.Object,_repo);
         var stories =  cntroller.Get();
 
         Assert.Equal( 3, stories.Count());
     }
+    
+    /// <summary>
+    /// Stub to Test Search with empty search parameter Endpoint /Stories/Search
+    /// </summary>
+    /// <returns></returns>
     [Fact]
     public async Task TestGetStoriesController_Search_Empty()
     {
@@ -47,6 +56,11 @@ public class StoryRepoTests
         Assert.Equal(3,stories.Count());
     }
 
+    /// <summary>
+    /// Stub to Test Search with title Endpoint /Stories/Search?search="Title1"
+    /// </summary>
+    /// <param name="search"></param>
+    /// <returns></returns>
     [Theory]
     [InlineData("Title1")]
     public async Task TestGetStoriesController_Search(string search)
@@ -59,6 +73,10 @@ public class StoryRepoTests
         Assert.True(stories.All(s=>s.Title.Contains(search,StringComparison.OrdinalIgnoreCase)));
     }
 
+    /// <summary>
+    /// Stub to Test Cache functionality
+    /// </summary>
+    /// <returns></returns>
     [Fact]
     public async Task TestCacheFunctionality()
     {
@@ -72,7 +90,10 @@ public class StoryRepoTests
                 ItExpr.Is<HttpRequestMessage>(req => req.Method == HttpMethod.Get && req.RequestUri.ToString().EndsWith("newstories.json?print=pretty")),
                 ItExpr.IsAny<CancellationToken>());
     }
-
+    /// <summary>
+    /// Stub to test Service layer which fetches all stories
+    /// </summary>
+    /// <returns></returns>
     [Fact]
     public async Task GetStories_ShouldReturnListOfStories()
     {
@@ -86,7 +107,10 @@ public class StoryRepoTests
         Assert.True(stories.Any(s=>s.Title.Equals("Title1",StringComparison.OrdinalIgnoreCase)));
 
     }
-
+    /// <summary>
+    /// Stub to test service layer which fetches matching stories
+    /// </summary>
+    /// <returns></returns>
     [Fact]
     public async Task SearchStories_ShouldReturnMatchingStories()
     {
@@ -100,7 +124,10 @@ public class StoryRepoTests
         Assert.Single(result);
         Assert.Equal("Title1", result.First().Title);
     }
-   
+   /// <summary>
+   /// Stub to test service layer with empty search parameter
+   /// </summary>
+   /// <returns></returns>
     [Fact]
     public async Task SearchStories_EmptyName_ShouldReturnAllStories()
     {
@@ -113,7 +140,11 @@ public class StoryRepoTests
         Assert.Equal(3, result.Count);
         Assert.True(result.Any(s=>s.Title.Equals("Title1",StringComparison.OrdinalIgnoreCase)));
     }
-
+    /// <summary>
+    /// Stub to test Global exception filter
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException"></exception>
     [Fact]
     public async Task TestExceptionMiddleware()
     {
@@ -142,7 +173,10 @@ public class StoryRepoTests
         Assert.Equal(System.Net.HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Contains("An unexpected error occurred", responseContent);
     }
-
+    /// <summary>
+    /// Helper method to mock object
+    /// </summary>
+    /// <returns></returns>
     private async Task MockObjects()
     {
         var storyIds = new[] { "1", "2", "3" };
