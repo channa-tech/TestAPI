@@ -45,6 +45,17 @@ namespace TestAPI.Controllers
             return repo.SearchStories(name).Result;
         }
 
+        /// <summary>
+        /// Fetch Story by Id
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [HttpGet("Story/{id:long}")]
+        public Story GetStory(long id)
+        {
+            return  repo.GetStory(id).Result;
+        }
+
         
     }
 

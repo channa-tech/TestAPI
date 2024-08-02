@@ -8,6 +8,7 @@ namespace Service
     {
         public Task<List<Story>> GetStories();
         public Task<List<Story>> SearchStories(string Name);
+        public Task<Story> GetStory(long id);
     }
     
     

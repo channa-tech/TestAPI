@@ -24,6 +24,11 @@ namespace Service
         {
             return Stories;
         }
+
+        public Story? GetStory(long id)
+        {
+            return Stories.FirstOrDefault(s => s.Id == id);
+        }
         /// <summary>
         /// Method to check if the cache is empty
         /// </summary>

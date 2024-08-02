@@ -86,5 +86,15 @@ namespace Service
                 return _cache.GetCacheData().ToList();
             return _cache.GetCacheData().Where(s => s.Title.Contains(Name, StringComparison.OrdinalIgnoreCase)).ToList();
         }
+
+        async Task<Story> IRepository.GetStory(long id)
+        {
+            if(_cache.IsEmpty())
+            {
+                await GetStories();
+            }
+            var story = _cache.GetStory(id);
+            return story;
+        }
     }
 }

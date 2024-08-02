@@ -29,7 +29,7 @@ app.UseCors(options =>
     options.AllowAnyHeader();
 });
 app.UseAuthorization();
-
+app.MapHealthChecks("/");
 app.MapControllers();
 
 app.Run();

@@ -12,6 +12,7 @@ namespace Service
     {
         public bool IsEmpty();
         public ConcurrentBag<Story> GetCacheData();
+        public Story? GetStory(long id);
 
     }
 }
