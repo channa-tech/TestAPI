@@ -10,6 +10,7 @@ builder.Services.AddScoped<IRepository,StoryRepo>();
 builder.Services.AddSingleton<ICache, Cache>();
 builder.Services.AddScoped<HttpClient>();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHealthChecks();
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {

@@ -3,6 +3,7 @@ using Service.Models;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,6 +14,8 @@ namespace Service
     {
         private readonly ICache _cache;
         private readonly HttpClient _httpClient;
+        private static readonly SemaphoreSlim _semaphore=new(1,1);
+        private static bool isCacheBuilt = false;
         public StoryRepo(HttpClient client,ICache cache)
         {
             _httpClient = client;
@@ -27,18 +30,42 @@ namespace Service
         /// <returns> Returns List of Stories</returns>
         public async Task<List<Story>> GetStories()
         {
-            if (_cache.IsEmpty())
+            Stopwatch sw = Stopwatch.StartNew();
+            try
             {
-
-                var response = await _httpClient.GetAsync("newstories.json?print=pretty");
-                var res = await response.Content.ReadAsStringAsync();
-                var output = JsonConvert.DeserializeObject<string[]>(res);
-                await Parallel.ForEachAsync(output, async (id, tk) =>
+              
+                Console.WriteLine(Thread.CurrentThread.Name + " request is processing");
+                if(!isCacheBuilt)
+                   await _semaphore.WaitAsync();
+                
+                if (!isCacheBuilt)
                 {
-                 _cache.GetCacheData().Add(await GetStory(id));
-                });
+
+                    var response = await _httpClient.GetAsync("newstories.json?print=pretty");
+                    var res = await response.Content.ReadAsStringAsync();
+                    var output = JsonConvert.DeserializeObject<string[]>(res);
+                    List<Task> tasks = new List<Task>();
+                    await Parallel.ForEachAsync(output, async (id, tk) =>
+                    {
+                        tasks.Add(GetStory(id));
+                    });
+                    Task.WaitAll([.. tasks]);
+                    isCacheBuilt = true;
+                }
             }
-            _cache.GetCacheData().Order();
+            catch(Exception ex)
+            {
+                _cache.GetCacheData().Clear();
+                isCacheBuilt=false;
+                throw;
+            }
+            finally
+            {
+                if(_semaphore.CurrentCount> 0)
+                    _semaphore.Release();
+            }
+            Console.WriteLine(Thread.CurrentThread.ManagedThreadId + " request processed in "+ sw.Elapsed.TotalSeconds+" seconds");
+            //Console.WriteLine();
             return _cache.GetCacheData().ToList();
         }
         /// <summary>
@@ -46,14 +73,15 @@ namespace Service
         /// </summary>
         /// <param name="Id"></param>
         /// <returns>returns Story for a specific Id</returns>
-        private async Task<Story> GetStory(string Id)
+        private async Task GetStory(string Id)
         {
 
 
             var response = await _httpClient.GetAsync($"item/{Id}.json?print=pretty");
             var res = await response.Content.ReadAsStringAsync();
             var val = JsonConvert.DeserializeObject<dynamic>(res);
-            return ConvertTOStory(val);
+            var s= ConvertTOStory(val);
+            _cache.GetCacheData().Add(s);
 
         }
         /// <summary>
@@ -96,5 +124,7 @@ namespace Service
             var story = _cache.GetStory(id);
             return story;
         }
+
+       
     }
 }
